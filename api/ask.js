@@ -1,23 +1,19 @@
-export const config = {
-  api: {
-    bodyParser: false
-  }
-};
-
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).send('Only POST allowed');
+  let question = '';
+
+  if (req.method === 'GET') {
+    question = req.query.q || '';
+  } else if (req.method === 'POST') {
+    let body = '';
+    await new Promise(resolve => {
+      req.on('data', chunk => body += chunk);
+      req.on('end', resolve);
+    });
+    const params = new URLSearchParams(body);
+    question = params.get('q') || '';
+  } else {
+    return res.status(405).send('Method Not Allowed');
   }
-
-  // 手动解析 x-www-form-urlencoded
-  let body = '';
-  await new Promise(resolve => {
-    req.on('data', chunk => body += chunk);
-    req.on('end', resolve);
-  });
-
-  const params = new URLSearchParams(body);
-  const question = params.get('q') || '';
 
   if (!question.trim()) {
     return res.status(400).send('Missing question');
