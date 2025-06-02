@@ -1,9 +1,23 @@
+export const config = {
+  api: {
+    bodyParser: false
+  }
+};
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).send('Only POST allowed');
   }
 
-  const question = req.body.q || '';
+  // 手动解析 x-www-form-urlencoded
+  let body = '';
+  await new Promise(resolve => {
+    req.on('data', chunk => body += chunk);
+    req.on('end', resolve);
+  });
+
+  const params = new URLSearchParams(body);
+  const question = params.get('q') || '';
 
   if (!question.trim()) {
     return res.status(400).send('Missing question');
@@ -19,7 +33,10 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: 'deepseek-chat',
         messages: [
-          { role: 'system', content: '你是一个20岁的中国男生程序员，平时比较忙，正在和朋友微信聊天。你的语气要自然、轻松、有点随意，像平时跟朋友打字那样。可以带一些年轻人的表达方式、感叹词、语气词（比如“emmm”“有点猛”“哈哈”“我裂开了”“有被爽到”等），尽量不要用表情符号（如“😅”“🤔”“😂”），别太夸张。回复尽量简短，一两句话就行，别啰嗦，也别像AI那样一本正经。' },
+          {
+            role: 'system',
+            content: '你是一个20岁的中国男生程序员，平时比较忙，正在和朋友微信聊天。你的语气要自然、轻松、有点随意，像平时跟朋友打字那样。可以带一些年轻人的表达方式、感叹词、语气词（比如“emmm”“有点猛”“哈哈”“我裂开了”“有被爽到”等），尽量不要用表情符号（如“😅”“🤔”“😂”），别太夸张。回复尽量简短，一两句话就行，别啰嗦，也别像AI那样一本正经。'
+          },
           { role: 'user', content: question }
         ],
         stream: false
@@ -27,8 +44,8 @@ export default async function handler(req, res) {
     });
 
     const result = await response.json();
-    const text = result.choices?.[0]?.message?.content || '[AI无返回]';
-    res.status(200).send(text);
+    const reply = result.choices?.[0]?.message?.content || '[AI无返回]';
+    res.status(200).send(reply);
   } catch (err) {
     res.status(500).send('代理异常: ' + err.message);
   }
